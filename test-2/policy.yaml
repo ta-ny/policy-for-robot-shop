@@ -1,0 +1,175 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredannotationswithexemption
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    metadata.gatekeeper.sh/title: "Required Annotations With Exemption"
+    description: "Requires annotations unless object has exemption annotation. Supports excludedNamespaces + exemptionAnnotationKey."
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredAnnotationsWithExemption
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            annotations:
+              type: array
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  allowedRegex:
+                    type: string
+            exemptionAnnotationKey:
+              type: string
+              description: "Annotation key; if present on object, validation is skipped"
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredannotationswithexemption
+
+        is_exempt {
+          key := object.get(input.parameters, "exemptionAnnotationKey", "")
+          key != ""
+          input.review.object.metadata.annotations[key]
+        }
+
+        violation[{"msg": msg, "details": {"missing_annotations": missing}}] {
+          not is_exempt
+          provided := {annotation | input.review.object.metadata.annotations[annotation]}
+          required := {annotation | annotation := input.parameters.annotations[_].key}
+          missing := required - provided
+          count(missing) > 0
+          msg := sprintf("you must provide annotation(s): %v", [missing])
+        }
+
+        violation[{"msg": msg}] {
+          not is_exempt
+          value := input.review.object.metadata.annotations[key]
+          expected := input.parameters.annotations[_]
+          expected.key == key
+          expected.allowedRegex != ""
+          not regex.match(expected.allowedRegex, value)
+          msg := sprintf("Annotation <%v: %v> does not satisfy allowed regex: %v", [key, value, expected.allowedRegex])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredAnnotationsWithExemption
+metadata:
+  name: required-annotations
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  match:
+    scope: Namespaced
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - ingress-nginx-kiali
+      - vcluster-platform
+      - kosmos-configsync
+      - kosmos-policysync
+      - kuma-system
+      - istio-system
+      - wallarm-ingress
+      - trusted-workloads
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+      - apiGroups: ["networking.k8s.io"]
+        kinds: ["Ingress"]
+  parameters:
+    annotations:
+      - key: env
+        allowedRegex: "^(test|dev|stg|prod)$"
+      - key: owner
+    exemptionAnnotationKey: "policy-exemption"
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPPrivilegedContainer
+metadata:
+  name: deny-privileged-container
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - vcluster-platform
+      - kosmos-configsync
+      - kosmos-policysync
+      - istio-system
+      - ingress-nginx-kiali
+      - kuma-system
+      - wallarm-ingress
+  parameters: {}
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPodResourcesBestPractices
+metadata:
+  name: required-resource-limits
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  match:
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - vcluster-platform
+      - kosmos-configsync
+      - kosmos-policysync
+      - istio-system
+      - ingress-nginx-kiali
+      - kuma-system
+      - wallarm-ingress
+    scope: Namespaced
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+  parameters: {}
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRestrictNamespaces
+metadata:
+  name: block-default-namespace
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  match:
+    scope: Namespaced
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - vcluster-platform
+      - kosmos-configsync
+      - kosmos-policysync
+      - istio-system
+      - ingress-nginx-kiali
+      - kuma-system
+      - wallarm-ingress
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+      - apiGroups: ["networking.k8s.io"]
+        kinds: ["Ingress"]
+  parameters:
+    restrictedNamespaces:
+      - default
