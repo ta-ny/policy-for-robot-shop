@@ -2,7 +2,7 @@ apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sRequiredAnnotationsWithExemption
 metadata:
   name: required-annotations
-  argocd.argoproj.io/sync-wave: "1"
+  # argocd.argoproj.io/sync-wave: "1"
 spec:
   match:
     scope: Namespaced

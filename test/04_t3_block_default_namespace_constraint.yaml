@@ -4,7 +4,7 @@ apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sRestrictNamespaces
 metadata:
   name: block-default-namespace
-  argocd.argoproj.io/sync-wave: "2"
+  # argocd.argoproj.io/sync-wave: "2"
 spec:
   match:
     scope: Namespaced

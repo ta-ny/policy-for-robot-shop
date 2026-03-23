@@ -5,7 +5,7 @@ apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sPodResourcesBestPractices
 metadata:
   name: required-resource-limits
-  argocd.argoproj.io/sync-wave: "2"
+  # argocd.argoproj.io/sync-wave: "2"
 spec:
   match:
     excludedNamespaces:

@@ -3,7 +3,7 @@ kind: ConstraintTemplate
 metadata:
   name: k8srequiredannotationswithexemption
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    # argocd.argoproj.io/sync-wave: "0"
     metadata.gatekeeper.sh/title: "Required Annotations With Exemption"
     description: "Requires annotations unless object has exemption annotation. Supports excludedNamespaces + exemptionAnnotationKey."
 spec:
